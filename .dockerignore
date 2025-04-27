@@ -1,0 +1,10 @@
+node_modules
+.git
+.gitignore
+*.md
+build
+.env
+credentials.txt
+db.json
+.DS_Store
+docs/*
