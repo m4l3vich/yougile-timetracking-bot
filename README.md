@@ -6,7 +6,7 @@
 
 Бот, который создает отчеты на основе таймтрекинга пользователей YouGile.
 
-![Demo](demo.mp4)
+https://github.com/user-attachments/assets/fa60ced2-550d-400e-8a62-42ac39a6f09e
 
 ## Как работает создание отчётов?
 
