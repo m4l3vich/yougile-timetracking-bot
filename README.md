@@ -1,6 +1,6 @@
 # YouGile Timetracking Bot
 
-[![Typescript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![Docker Hub](https://img.shields.io/badge/Docker-0db7ed?logo=docker&logoColor=white)](https://hub.docker.com/r/m4l3vich/yougile-timetracking-bot) [![JavaScript Style Guide](https://img.shields.io/badge/code_style-standard-brightgreen.svg)](https://standardjs.com) [![Docker Image Size](https://img.shields.io/docker/image-size/m4l3vich/yougile-timetracking-bot)](https://hub.docker.com/r/m4l3vich/yougile-timetracking-bot)
+[![Typescript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![Docker Hub](https://img.shields.io/badge/Docker-0db7ed?logo=docker&logoColor=white)](https://hub.docker.com/r/m4l3vich/yougile-timetracking-bot) [![JavaScript Style Guide](https://img.shields.io/badge/code_style-standard-brightgreen.svg)](https://standardjs.com) [![Docker Image Size](https://img.shields.io/docker/image-size/m4l3vich/yougile-timetracking-bot)](https://hub.docker.com/r/m4l3vich/yougile-timetracking-bot) [![Powered by puregram](https://img.shields.io/badge/puregram-24A1DE?logo=telegram&logoColor=white)](https://puregram.cool)
 
 [English](README-EN.md)
 
