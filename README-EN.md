@@ -44,14 +44,14 @@ Required environment variables:
 
 Optional environment variables:
 
-- **TG_WHITELIST**: List of Telegram User ID's of users, split by comma, that will be allowed to use this bot.
-  You can get your own user ID using [@myidbot](https://t.me/myidbot).
-  Example value: `123456,7890`.
+- **TG_WHITELIST**: List of Telegram User ID's of users, split by comma, that will be allowed to use this bot.    
+  You can get your own user ID using [@myidbot](https://t.me/myidbot).    
+  Example value: `123456,7890`.    
   If this is not set, everyone will be able to use the bot.
-- **YG_API_URL**: URL for the YouGile's API server.
-  In most cases, you don't need to set this variable.
+- **YG_API_URL**: URL for the YouGile's API server.    
+  In most cases, you don't need to set this variable.    
   The default value is `https://an3-acc2.yougile.com`
-- **YG_CREDENTIALS_FILE**: Path to YouGile user's credentials file.
+- **YG_CREDENTIALS_FILE**: Path to YouGile user's credentials file.    
   Default value: `./credentials.txt`
 
 ## Running locally
@@ -70,15 +70,9 @@ You will need latest [Node.js LTS](https://nodejs.org/en/download) and [PNPM](ht
 Unfortunately, this is not that easy.
 
 1. Open YouGile in Chrome
-
 2. Open DevTools (F12) -> Network tab
-
 3. Select the "Fetch/XHR" filter
-
 4. Refresh the page
-
-5. Find a request that will contain `companyId` in its payload, for example:
-
+5. Find a request that will contain `companyId` in its payload, for example:    
    ![company-id](docs/company-id.webp)
-
 6. Copy the value (without quotes!) and use it
