@@ -1,4 +1,0 @@
-{
-  "watch": "src",
-  "exec": "tsx -r dotenv/config"
-}
