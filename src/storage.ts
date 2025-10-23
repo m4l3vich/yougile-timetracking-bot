@@ -17,10 +17,11 @@ export interface YougileUser {
 }
 
 export interface StorageData {
-  session?: YougileSession,
-  tasksCache: YougileTask[],
+  session?: YougileSession
+  revision: number
+  tasksCache: YougileTask[]
   usersCache: YougileUser[]
 }
 
-const defaultData: StorageData = { tasksCache: [], usersCache: [] }
+const defaultData: StorageData = { tasksCache: [], usersCache: [], revision: 0 }
 export const db = await JSONFilePreset<StorageData>('db.json', defaultData)

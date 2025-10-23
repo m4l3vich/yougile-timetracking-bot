@@ -24,14 +24,20 @@ interface YougileTimetrackingResponse extends YougileResponse {
   }
 }
 
-interface YougileIndexResponse extends YougileResponse {
-  accounts: {
+interface YougileIndexV2Response extends YougileResponse {
+  companies: {
+    users: {
+      [key: string]: { isAdmin: boolean }
+    }
+
+    accounts: {
+      id: string
+      realName: string
+    }[]
+
     id: string
-    realName: string
-  }[]
-  data: {
-    companyId: string
-    index: {
+    revision: number
+    data: {
       [key: string]: {
         id: string
         dataType: string
@@ -46,28 +52,29 @@ interface YougileNumericIdsResponse extends YougileResponse {
   numericIds: Record<string, string>
 }
 
-async function login () {
-  const [email, password] = (await fs.readFile(CREDENTIALS_FILE, 'utf8'))
-    .split(':')
+async function login (): Promise<void> {
+  try {
+    const credentials = await fs.readFile(CREDENTIALS_FILE, 'utf8')
+    const [email, password] = credentials.trim().split(':')
 
-  const resp = await fetch(
-    API_URL + '/data/key', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email, password
-      })
+    if (!email || !password) {
+      throw new Error('invalid credentials format')
     }
-  )
 
-  const body: YougileLoginResponse = await resp.json()
-  if (body.result !== 'ok') {
-    console.error(body)
-    throw new Error('login failed')
+    const response = await requestAPI<YougileLoginResponse>(
+      '/data/key', { email, password }
+    )
+
+    db.data.session = {
+      key: response.key,
+      userId: response.userId
+    }
+
+    await db.write()
+  } catch (err) {
+    console.error('Login failed:', err)
+    throw err
   }
-  
-  db.data.session = { key: body.key, userId: body.userId }
-  return db.write()
 }
 
 async function requestAPI<T extends YougileResponse> (url: string, params: Record<string, unknown>): Promise<T> {
@@ -92,20 +99,24 @@ export async function updateCache (triedLogin = false) {
   try {
     if (!db.data.session) throw new Error('no session')
 
-    const indexResp = await requestAPI<YougileIndexResponse>('/data/index', {
+    const indexResp = await requestAPI<YougileIndexV2Response>('/data/index-v2', {
       key: db.data.session.key,
       userId: db.data.session.userId,
-      paging: true,
-      count: 100,
+      minorVersion: 8,
+      acceptAll: false,
+      companies: [{
+        id: process.env.YG_COMPANY_ID,
+        revision: db.data.revision
+      }],
       v: 8
     })
 
-    const companyIndex = indexResp.data
-      .find(e => e.companyId === process.env.YG_COMPANY_ID)
-    if (!companyIndex) throw new Error('no company in index')
+    const company = indexResp.companies
+      .find(e => e.id === process.env.YG_COMPANY_ID)
+    if (!company) throw new Error('no company in index')
 
     db.data.tasksCache = []
-    const tasks = Object.values(companyIndex.index).filter(e => {
+    const tasks = Object.values(company.data).filter(e => {
       if (e.dataType !== 'Hub') return false
       if (typeof e.data?.by !== 'string') return false
       return true
@@ -132,9 +143,10 @@ export async function updateCache (triedLogin = false) {
       })
     }
 
-    const users: YougileUser[] = indexResp.accounts.map(e => ({ uuid: e.id, name: e.realName }))
+    const users: YougileUser[] = company.accounts.map(e => ({ uuid: e.id, name: e.realName }))
     db.data.usersCache = users
 
+    db.data.revision = company.revision
     return db.write()
   } catch (err) {
     if (!triedLogin) {
