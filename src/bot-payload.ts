@@ -13,6 +13,6 @@ export enum BotPayload {
   GenerateAgain = 'gen'
 }
 
-export function isBotPayload (value: string): value is BotPayload {
+export function isBotPayload(value: string): value is BotPayload {
   return Object.values(BotPayload).includes(value as BotPayload)
 }

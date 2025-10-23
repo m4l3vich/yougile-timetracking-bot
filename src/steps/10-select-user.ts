@@ -54,7 +54,10 @@ function generateUserSelectKeyboard(page: number = 0) {
 }
 
 export async function selectUser(ctx: BotSceneContext): Promise<void> {
-  if (ctx.is('callback_query') && ctx.payload.data?.startsWith(BotPayload.GenerateAgain + ':')) {
+  if (
+    ctx.is('callback_query') &&
+    ctx.payload.data?.startsWith(BotPayload.GenerateAgain + ':')
+  ) {
     return ctx.scene.step.go(2)
   }
 
@@ -66,7 +69,9 @@ export async function selectUser(ctx: BotSceneContext): Promise<void> {
     const keyboard = generateUserSelectKeyboard()
 
     if (ctx.is('callback_query')) {
-      await ctx.editText('[1/3] 👤 Выберите сотрудника:', { reply_markup: keyboard })
+      await ctx.editText('[1/3] 👤 Выберите сотрудника:', {
+        reply_markup: keyboard
+      })
       return
     }
 

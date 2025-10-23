@@ -17,8 +17,8 @@ interface YougileTimetrackingResponse extends YougileResponse {
       type: 'timetracking'
       obj: string
       options: {
-        oldValue?: { plan: number, work: number }
-        newValue: { plan: number, work: number }
+        oldValue?: { plan: number; work: number }
+        newValue: { plan: number; work: number }
       }
     }
   }
@@ -52,7 +52,7 @@ interface YougileNumericIdsResponse extends YougileResponse {
   numericIds: Record<string, string>
 }
 
-async function login (): Promise<void> {
+async function login(): Promise<void> {
   try {
     const credentials = await fs.readFile(CREDENTIALS_FILE, 'utf8')
     const [email, password] = credentials.trim().split(':')
@@ -61,9 +61,10 @@ async function login (): Promise<void> {
       throw new Error('invalid credentials format')
     }
 
-    const response = await requestAPI<YougileLoginResponse>(
-      '/data/key', { email, password }
-    )
+    const response = await requestAPI<YougileLoginResponse>('/data/key', {
+      email,
+      password
+    })
 
     db.data.session = {
       key: response.key,
@@ -77,16 +78,17 @@ async function login (): Promise<void> {
   }
 }
 
-async function requestAPI<T extends YougileResponse> (url: string, params: Record<string, unknown>): Promise<T> {
-  const resp = await fetch(
-    API_URL + url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params)
-    }
-  )
+async function requestAPI<T extends YougileResponse>(
+  url: string,
+  params: Record<string, unknown>
+): Promise<T> {
+  const resp = await fetch(API_URL + url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params)
+  })
 
-  const json = await resp.json() as T
+  const json = (await resp.json()) as T
   if (json.result !== 'ok') {
     console.error(json)
     throw new Error('request failed')
@@ -95,24 +97,30 @@ async function requestAPI<T extends YougileResponse> (url: string, params: Recor
   return json
 }
 
-export async function updateCache (triedLogin = false) {
+export async function updateCache(triedLogin = false) {
   try {
     if (!db.data.session) throw new Error('no session')
 
-    const indexResp = await requestAPI<YougileIndexV2Response>('/data/index-v2', {
-      key: db.data.session.key,
-      userId: db.data.session.userId,
-      minorVersion: 8,
-      acceptAll: false,
-      companies: [{
-        id: process.env.YG_COMPANY_ID,
-        revision: db.data.revision
-      }],
-      v: 8
-    })
+    const indexResp = await requestAPI<YougileIndexV2Response>(
+      '/data/index-v2',
+      {
+        key: db.data.session.key,
+        userId: db.data.session.userId,
+        minorVersion: 8,
+        acceptAll: false,
+        companies: [
+          {
+            id: process.env.YG_COMPANY_ID,
+            revision: db.data.revision
+          }
+        ],
+        v: 8
+      }
+    )
 
-    const company = indexResp.companies
-      .find(e => e.id === process.env.YG_COMPANY_ID)
+    const company = indexResp.companies.find(
+      e => e.id === process.env.YG_COMPANY_ID
+    )
     if (!company) throw new Error('no company in index')
 
     db.data.tasksCache = []
@@ -123,7 +131,8 @@ export async function updateCache (triedLogin = false) {
     })
 
     const numericIdsResp = await requestAPI<YougileNumericIdsResponse>(
-      '/data/id-tasks/get-ids', {
+      '/data/id-tasks/get-ids',
+      {
         key: db.data.session.key,
         userId: db.data.session.userId,
         companyId: process.env.YG_COMPANY_ID,
@@ -143,7 +152,10 @@ export async function updateCache (triedLogin = false) {
       })
     }
 
-    const users: YougileUser[] = company.accounts.map(e => ({ uuid: e.id, name: e.realName }))
+    const users: YougileUser[] = company.accounts.map(e => ({
+      uuid: e.id,
+      name: e.realName
+    }))
     db.data.usersCache = users
 
     db.data.revision = company.revision
@@ -159,7 +171,9 @@ export async function updateCache (triedLogin = false) {
   }
 }
 
-async function resolveTaskIds (uuids: Set<string>): Promise<Map<string, YougileTask>> {
+async function resolveTaskIds(
+  uuids: Set<string>
+): Promise<Map<string, YougileTask>> {
   const result: Map<string, YougileTask> = new Map()
 
   for (const task of db.data.tasksCache) {
@@ -179,12 +193,16 @@ interface TrackerTask extends YougileTask {
   hours: number
 }
 
-export async function getTrackerTasks (filters?: Record<string, unknown>, triedLogin = false): Promise<TrackerTask[]> {
+export async function getTrackerTasks(
+  filters?: Record<string, unknown>,
+  triedLogin = false
+): Promise<TrackerTask[]> {
   try {
     if (!db.data.session) throw new Error('no session')
 
     const trackingJson = await requestAPI<YougileTimetrackingResponse>(
-      '/data/user-events/list-limited', {
+      '/data/user-events/list-limited',
+      {
         key: db.data.session.key,
         userId: db.data.session.userId,
         companyId: process.env.YG_COMPANY_ID,
@@ -206,7 +224,8 @@ export async function getTrackerTasks (filters?: Record<string, unknown>, triedL
       if (!item.options.newValue?.work) continue
 
       const task = result.get(item.obj)!
-      const delta = item.options.newValue.work - (item.options.oldValue?.work ?? 0)
+      const delta =
+        item.options.newValue.work - (item.options.oldValue?.work ?? 0)
 
       task.hours += delta
     }
