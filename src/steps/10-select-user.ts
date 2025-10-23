@@ -3,8 +3,57 @@ import { db } from '../storage.js'
 import { BotSceneContext } from '../types/bot.js'
 import { updateCache } from '../yougile.js'
 import { BotPayload, isBotPayload } from '../bot-payload.js'
+import { TelegramInlineKeyboardButton } from 'puregram/generated'
 
-export async function selectUser (ctx: BotSceneContext): Promise<void> {
+const MAX_USERS_ON_PAGE = 12
+
+function generateUserSelectKeyboard(page: number = 0) {
+  const maxPage = Math.floor(db.data.usersCache.length / MAX_USERS_ON_PAGE)
+  let paginationButtons: TelegramInlineKeyboardButton[] = []
+  let users = db.data.usersCache
+
+  if (db.data.usersCache.length > MAX_USERS_ON_PAGE) {
+    users = db.data.usersCache.slice(
+      page * MAX_USERS_ON_PAGE,
+      (page + 1) * MAX_USERS_ON_PAGE
+    )
+
+    paginationButtons = [
+      InlineKeyboard.textButton({
+        text: '⬅️',
+        payload:
+          page > 0 //
+            ? BotPayload.SelectUserPagination + ':' + (page - 1)
+            : 'noop'
+      }),
+
+      InlineKeyboard.textButton({
+        text: `${page + 1} / ${maxPage + 1}`,
+        payload: 'noop'
+      }),
+
+      InlineKeyboard.textButton({
+        text: '➡️',
+        payload:
+          maxPage > page
+            ? BotPayload.SelectUserPagination + ':' + (page + 1)
+            : 'noop'
+      })
+    ]
+  }
+
+  return InlineKeyboard.keyboard([
+    ...users.map(user =>
+      InlineKeyboard.textButton({
+        text: user.name,
+        payload: BotPayload.SelectUser + ':' + user.uuid
+      })
+    ),
+    paginationButtons
+  ])
+}
+
+export async function selectUser(ctx: BotSceneContext): Promise<void> {
   if (ctx.is('callback_query') && ctx.payload.data?.startsWith(BotPayload.GenerateAgain + ':')) {
     return ctx.scene.step.go(2)
   }
@@ -14,14 +63,7 @@ export async function selectUser (ctx: BotSceneContext): Promise<void> {
       await updateCache()
     }
 
-    const keyboard = InlineKeyboard.keyboard(
-      db.data.usersCache.map(user =>
-        InlineKeyboard.textButton({
-          text: user.name,
-          payload: BotPayload.SelectUser + ':' + user.uuid
-        })
-      )
-    )
+    const keyboard = generateUserSelectKeyboard()
 
     if (ctx.is('callback_query')) {
       await ctx.editText('[1/3] 👤 Выберите сотрудника:', { reply_markup: keyboard })
@@ -32,13 +74,24 @@ export async function selectUser (ctx: BotSceneContext): Promise<void> {
     return
   }
 
-  const [key, uuid] = (ctx.payload.data ?? '').split(':')
-  if (!isBotPayload(key) || key !== BotPayload.SelectUser) return void ctx.answerCallbackQuery()
+  const [key, arg] = (ctx.payload.data ?? '').split(':')
+  if (!isBotPayload(key)) return void ctx.answerCallbackQuery()
 
-  const userExists = db.data.usersCache.some(e => e.uuid === uuid)
+  if (key === BotPayload.SelectUserPagination && !Number.isNaN(arg)) {
+    await ctx.editText('[1/3] 👤 Выберите сотрудника:', {
+      reply_markup: generateUserSelectKeyboard(Number(arg))
+    })
+    return
+  }
 
-  if (!userExists) return
-  ctx.scene.state.userId = uuid
+  if (key === BotPayload.SelectUser) {
+    const userExists = db.data.usersCache.some(e => e.uuid === arg)
 
-  return ctx.scene.step.next()
+    if (!userExists) return
+    ctx.scene.state.userId = arg
+
+    return ctx.scene.step.next()
+  }
+
+  return void ctx.answerCallbackQuery()
 }

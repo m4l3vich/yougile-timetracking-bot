@@ -1,5 +1,6 @@
 export enum BotPayload {
   SelectUser = 'user',
+  SelectUserPagination = 'userp',
   CloseCalendar = 'dspan',
   DatespanCurrentMonth = 'dspan-cmonth',
   DatespanPrevMonth = 'dspan-pmonth',
