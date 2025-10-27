@@ -7,7 +7,7 @@ export interface YougileSession {
 
 export interface YougileTask {
   uuid: string
-  numericId: number
+  numericId: string
   title: string
 }
 

@@ -146,9 +146,7 @@ export async function updateCache(triedLogin = false) {
 
       db.data.tasksCache.push({
         uuid: task.id,
-        numericId: Number(
-          numericIdsResp.numericIdsByProject[task.id]?.id ?? 'N/A'
-        ),
+        numericId: numericIdsResp.numericIdsByProject[task.id]?.id ?? 'N/A',
         title: task.title
       })
     }
