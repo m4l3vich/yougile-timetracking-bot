@@ -49,7 +49,7 @@ interface YougileIndexV2Response extends YougileResponse {
 }
 
 interface YougileNumericIdsResponse extends YougileResponse {
-  numericIds: Record<string, string>
+  numericIdsByProject: Record<string, { id: string; projectId: string }>
 }
 
 async function login(): Promise<void> {
@@ -123,7 +123,6 @@ export async function updateCache(triedLogin = false) {
     )
     if (!company) throw new Error('no company in index')
 
-    db.data.tasksCache = []
     const tasks = Object.values(company.data).filter(e => {
       if (e.dataType !== 'Hub') return false
       if (typeof e.data?.by !== 'string') return false
@@ -147,7 +146,9 @@ export async function updateCache(triedLogin = false) {
 
       db.data.tasksCache.push({
         uuid: task.id,
-        numericId: Number(numericIdsResp.numericIds[task.id]),
+        numericId: Number(
+          numericIdsResp.numericIdsByProject[task.id]?.id ?? 'N/A'
+        ),
         title: task.title
       })
     }
