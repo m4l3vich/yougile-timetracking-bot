@@ -6,6 +6,9 @@ import * as reports from '../reports.js'
 import { PassThrough } from 'stream'
 import { BotPayload, isBotPayload } from '../bot-payload.js'
 import { TelegramMessage } from 'puregram/generated'
+import { YougileRequestError } from '../yougile.js'
+
+const MAX_RETRIES = 3
 
 export async function selectReportFormat(ctx: BotSceneContext): Promise<void> {
   if (!ctx.is('callback_query')) return ctx.scene.leave()
@@ -101,14 +104,43 @@ export async function selectReportFormat(ctx: BotSceneContext): Promise<void> {
 
   switch (format) {
     case 'count': {
-      const [reportStr, loaderCtx] = await Promise.all([
-        reports.generateCountReport({
-          user: ctx.scene.state.userId,
-          start: dayjs(ctx.scene.state.dateStart).startOf('day').valueOf(),
-          end: dayjs(ctx.scene.state.dateEnd).endOf('day').valueOf()
-        }),
-        sendLoader
-      ])
+      const loaderCtx = await sendLoader
+
+      let reportStr: string | undefined
+      let lastError: unknown
+
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          reportStr = await reports.generateCountReport({
+            user: ctx.scene.state.userId,
+            start: dayjs(ctx.scene.state.dateStart).startOf('day').valueOf(),
+            end: dayjs(ctx.scene.state.dateEnd).endOf('day').valueOf()
+          })
+          break
+        } catch (err) {
+          lastError = err
+          console.error(
+            `[${dayjs().format('YYYY-MM-DD HH:mm:ss')}] Report generation failed (attempt ${attempt}/${MAX_RETRIES}):`,
+            err
+          )
+        }
+      }
+
+      if (reportStr === undefined) {
+        const errorText = formatErrorMessage(lastError, reportParams)
+        if (isGeneratingAgain) {
+          const msgId = (loaderCtx as TelegramMessage).message_id
+          ctx.telegram.api.editMessageText({
+            chat_id: ctx.from.id,
+            message_id: msgId,
+            text: errorText,
+            reply_markup: refreshKeyboard
+          })
+        } else {
+          ctx.editText(errorText, { reply_markup: refreshKeyboard })
+        }
+        break
+      }
 
       const reportText = [
         '📊 Отчёт о таймтрекинге',
@@ -132,14 +164,45 @@ export async function selectReportFormat(ctx: BotSceneContext): Promise<void> {
     }
 
     case 'xlsx': {
-      const [workbook, loaderCtx] = await Promise.all([
-        reports.generateXlsxReport({
-          user: ctx.scene.state.userId,
-          start: dayjs(ctx.scene.state.dateStart).startOf('day').valueOf(),
-          end: dayjs(ctx.scene.state.dateEnd).endOf('day').valueOf()
-        }),
-        sendLoader
-      ])
+      const loaderCtx = await sendLoader
+
+      let workbook:
+        | Awaited<ReturnType<typeof reports.generateXlsxReport>>
+        | undefined
+      let lastError: unknown
+
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          workbook = await reports.generateXlsxReport({
+            user: ctx.scene.state.userId,
+            start: dayjs(ctx.scene.state.dateStart).startOf('day').valueOf(),
+            end: dayjs(ctx.scene.state.dateEnd).endOf('day').valueOf()
+          })
+          break
+        } catch (err) {
+          lastError = err
+          console.error(
+            `[${dayjs().format('YYYY-MM-DD HH:mm:ss')}] Report generation failed (attempt ${attempt}/${MAX_RETRIES}):`,
+            err
+          )
+        }
+      }
+
+      if (workbook === undefined) {
+        const errorText = formatErrorMessage(lastError, reportParams)
+        if (isGeneratingAgain) {
+          const msgId = (loaderCtx as TelegramMessage).message_id
+          ctx.telegram.api.editMessageText({
+            chat_id: ctx.from.id,
+            message_id: msgId,
+            text: errorText,
+            reply_markup: refreshKeyboard
+          })
+        } else {
+          ctx.editText(errorText, { reply_markup: refreshKeyboard })
+        }
+        break
+      }
 
       const stream = new PassThrough()
       workbook.xlsx.write(stream)
@@ -174,4 +237,22 @@ export async function selectReportFormat(ctx: BotSceneContext): Promise<void> {
   }
 
   return ctx.scene.leave()
+}
+
+function formatErrorMessage(error: unknown, reportParams: string[]): string {
+  const isYougileError = error instanceof YougileRequestError
+  const errorSource = isYougileError
+    ? '⚠️ Ошибка на стороне YouGile'
+    : '⚠️ Неизвестная ошибка'
+  const errorHint = isYougileError
+    ? 'Сервис YouGile вернул ошибку. Попробуйте позже или обратитесь в поддержку YouGile.'
+    : 'Произошла непредвиденная ошибка. Попробуйте позже.'
+
+  return [
+    `❌ Не удалось сгенерировать отчёт (${MAX_RETRIES} попытки):`,
+    ...reportParams,
+    '',
+    errorSource,
+    errorHint
+  ].join('\n')
 }

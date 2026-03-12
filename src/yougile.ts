@@ -78,6 +78,29 @@ async function login(): Promise<void> {
   }
 }
 
+interface YougileErrorInfo {
+  status: number
+  url: string
+  requestBody: Record<string, unknown>
+  response: unknown
+}
+
+export class YougileRequestError extends Error {
+  status: number
+  url: string
+  requestBody: Record<string, unknown>
+  response: unknown
+
+  constructor(options: YougileErrorInfo) {
+    super('Request failed: ' + JSON.stringify(options, null, 2))
+
+    this.status = options.status
+    this.url = options.url
+    this.requestBody = options.requestBody
+    this.response = options.response
+  }
+}
+
 async function requestAPI<T extends YougileResponse>(
   url: string,
   params: Record<string, unknown>
@@ -88,10 +111,17 @@ async function requestAPI<T extends YougileResponse>(
     body: JSON.stringify(params)
   })
 
-  const json = (await resp.json()) as T
-  if (json.result !== 'ok') {
-    console.error(json)
-    throw new Error('request failed')
+  const json = resp.headers.get('Content-Type')?.startsWith('application/json')
+    ? ((await resp.json()) as T)
+    : null
+
+  if (json?.result !== 'ok') {
+    throw new YougileRequestError({
+      status: resp.status,
+      url,
+      requestBody: params,
+      response: json ?? (await resp.text())
+    })
   }
 
   return json
@@ -101,22 +131,32 @@ export async function updateCache(triedLogin = false) {
   try {
     if (!db.data.session) throw new Error('no session')
 
-    const indexResp = await requestAPI<YougileIndexV2Response>(
-      '/data/index-v2',
-      {
+    // round down to the hundred: 12345 -> 12300
+    const revision = Math.floor(db.data.revision / 100) * 100
+    let indexResp: YougileIndexV2Response
+
+    try {
+      indexResp = await requestAPI<YougileIndexV2Response>('/data/index-v2', {
         key: db.data.session.key,
         userId: db.data.session.userId,
-        minorVersion: 8,
+        minorVersion: 9,
         acceptAll: false,
-        companies: [
-          {
-            id: process.env.YG_COMPANY_ID,
-            revision: db.data.revision
-          }
-        ],
-        v: 8
+        companies: [{ revision, id: process.env.YG_COMPANY_ID }],
+        v: 9
+      })
+    } catch (err) {
+      if (
+        err instanceof YougileRequestError &&
+        err.status === 500 &&
+        !triedLogin
+      ) {
+        db.data.revision = 0
+        db.data.tasksCache = []
+        return updateCache()
+      } else {
+        throw err
       }
-    )
+    }
 
     const company = indexResp.companies.find(
       e => e.id === process.env.YG_COMPANY_ID
@@ -160,7 +200,7 @@ export async function updateCache(triedLogin = false) {
     db.data.revision = company.revision
     return db.write()
   } catch (err) {
-    if (!triedLogin) {
+    if (err instanceof YougileRequestError && err.status < 500 && !triedLogin) {
       await login()
       return updateCache(true)
     }
@@ -231,7 +271,7 @@ export async function getTrackerTasks(
 
     return [...result.values()]
   } catch (err) {
-    if (!triedLogin) {
+    if (err instanceof YougileRequestError && err.status < 500 && !triedLogin) {
       await login()
       return getTrackerTasks(filters, true)
     }
