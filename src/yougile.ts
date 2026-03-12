@@ -129,7 +129,8 @@ async function requestAPI<T extends YougileResponse>(
 
 export async function updateCache(triedLogin = false) {
   try {
-    if (!db.data.session) throw new Error('no session')
+    if (!db.data.session) await login()
+    if (!db.data.session) throw new Error('failed to authenticate')
 
     // round down to the hundred: 12345 -> 12300
     const revision = Math.floor(db.data.revision / 100) * 100
@@ -237,7 +238,8 @@ export async function getTrackerTasks(
   triedLogin = false
 ): Promise<TrackerTask[]> {
   try {
-    if (!db.data.session) throw new Error('no session')
+    if (!db.data.session) await login()
+    if (!db.data.session) throw new Error('failed to authenticate')
 
     const trackingJson = await requestAPI<YougileTimetrackingResponse>(
       '/data/user-events/list-limited',

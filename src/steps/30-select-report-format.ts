@@ -120,9 +120,9 @@ export async function selectReportFormat(ctx: BotSceneContext): Promise<void> {
         } catch (err) {
           lastError = err
           console.error(
-            `[${dayjs().format('YYYY-MM-DD HH:mm:ss')}] Report generation failed (attempt ${attempt}/${MAX_RETRIES}):`,
-            err
+            `[${dayjs().format('YYYY-MM-DD HH:mm:ss')}] Report generation failed (attempt ${attempt}/${MAX_RETRIES}):`
           )
+          console.error(err)
         }
       }
 
